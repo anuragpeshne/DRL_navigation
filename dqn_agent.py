@@ -104,14 +104,8 @@ class Agent():
         """
         states, actions, rewards, next_states, dones = experiences
 
-        # Q0 = Q0 + alpha * (gamma * Q1 + reward - Q0)
-        # qnet_local0 = qnet_local0 + alpha * (gamma * qnet_target1 + reward - qnet_local0)
-
-        qnet_target1 = self.qnetwork_target(next_states).detach().max(1)[0].unsqueeze(1)
-        qnet_local0 = self.qnetwork_local(states).gather(1, actions)
-
-        Q_targets = rewards + (gamma * qnet_target1 * (1 - dones))
-        Q_expected = qnet_local0
+        Q_targets = self._get_targets(states, actions, rewards, next_states, dones, gamma)
+        Q_expected = self.__get_expected(states, actions, rewards, next_states, dones)
 
         loss = F.mse_loss(Q_expected, Q_targets)
         self.optimizer.zero_grad()
@@ -134,6 +128,26 @@ class Agent():
         for target_param, local_param in zip(target_model.parameters(), local_model.parameters()):
             target_param.data.copy_(tau*local_param.data + (1.0-tau)*target_param.data)
 
+    def _get_targets(self, states, actions, rewards, next_states, dones, gamma):
+        # Q0 = Q0 + alpha * (gamma * Q1 + reward - Q0)
+        # qnet_local0 = qnet_local0 + alpha * (gamma * qnet_target1 + reward - qnet_local0)
+
+        qnet_target1 = self.qnetwork_target(next_states).detach().max(1)[0].unsqueeze(1)
+        return rewards + (gamma * qnet_target1 * (1 - dones))
+
+    def __get_expected(self, states, actions, rewards, next_states, dones):
+        qnet_local0 = self.qnetwork_local(states).gather(1, actions)
+        return qnet_local0
+
+class DoubleDQNAgent(Agent):
+    def _get_targets(self, states, actions, rewards, next_states, dones, gamma):
+        # pick best actions using estimate network
+        # evaluate the action and state using target network
+
+        # torch.max returns max values as index 0 and indices as index 1
+        best_actions = self.qnetwork_local(next_states).detach().max(1)[1].unsqueeze(1)
+        qnet_target = self.qnetwork_target(next_states).detach().gather(1, best_actions)
+        return rewards + (gamma * qnet_target * (1 - dones))
 
 class ReplayBuffer:
     """Fixed-size buffer to store experience tuples."""
