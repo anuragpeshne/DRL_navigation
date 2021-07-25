@@ -16,6 +16,7 @@ GAMMA = 0.99            # discount factor
 TAU = 1e-3              # for soft update of target parameters
 LR = 5e-4               # learning rate
 UPDATE_EVERY = 4        # how often to update the network
+HUNGER_LIMIT = 20       # how many steps to tolerate wihtout +ve reward before doing something random
 
 #print("check if cuda available")
 #print(torch.cuda.is_available())
@@ -54,6 +55,7 @@ class Agent():
         print("Created replay buffer")
         # initialize time step (for updating every UPDATE_EVERY steps)
         self.t_step = 0
+        self.hunger = 0
 
     def step(self, state, action, reward, next_state, done):
         # Save experience in replay memory
@@ -67,7 +69,7 @@ class Agent():
                 experiences = self.memory.sample()
                 self.learn(experiences, GAMMA)
 
-    def act(self, state, eps=0.):
+    def act(self, state, eps=0., last_reward=1):
         """Returns actions for given state as per current policy.
 
         Params
@@ -81,8 +83,20 @@ class Agent():
             action_values = self.qnetwork_local(state)
         self.qnetwork_local.train()
 
+        do_random = False
+
+        # If we did not get reward from long time then
+        # do something else, don't trust the network
+        if (last_reward < 1):
+            self.hunger += 1
+            if self.hunger > HUNGER_LIMIT:
+                do_random = True
+                self.hunger = 0
+        else:
+            self.hunger = 0
+
         # Epsilon-greedy action selection
-        if random.random() > eps:
+        if not do_random and random.random() > eps:
             return np.argmax(action_values.cpu().data.numpy())
         else:
             return random.choice(np.arange(self.action_size))

@@ -18,8 +18,8 @@ class QNetwork(nn.Module):
         super(QNetwork, self).__init__()
         self.seed = torch.manual_seed(seed)
 
-        hidden_layer_size1 = 128
-        hidden_layer_size2 = 128
+        hidden_layer_size1 = 64
+        hidden_layer_size2 = 64
 
         self.fc1 = nn.Linear(state_size, hidden_layer_size1)
         self.fc2 = nn.Linear(hidden_layer_size1, hidden_layer_size2)
