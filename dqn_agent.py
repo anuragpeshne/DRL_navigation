@@ -18,13 +18,8 @@ LR = 5e-4               # learning rate
 UPDATE_EVERY = 4        # how often to update the network
 HUNGER_LIMIT = 20       # how many steps to tolerate wihtout +ve reward before doing something random
 
-#print("check if cuda available")
-#print(torch.cuda.is_available())
-print("setting torch.device")
 #device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-#device = torch.device("cuda:0")
 device = torch.device("cpu")
-print("setting torch.device: completed")
 
 class Agent():
     """Interacts with and leans from the environment."""
@@ -42,17 +37,13 @@ class Agent():
         self.action_size = action_size
         self.seed = random.seed(seed)
 
-        print("set vars")
-
         # Q-Network
         self.qnetwork_local = QNetwork(state_size, action_size, seed).to(device)
         self.qnetwork_target = QNetwork(state_size, action_size, seed).to(device)
         self.optimizer = optim.Adam(self.qnetwork_local.parameters(), lr=LR)
-        print("Created networks")
 
         # Replay memory
         self.memory = ReplayBuffer(action_size, BUFFER_SIZE, BATCH_SIZE, seed)
-        print("Created replay buffer")
         # initialize time step (for updating every UPDATE_EVERY steps)
         self.t_step = 0
         self.hunger = 0
@@ -91,6 +82,7 @@ class Agent():
             self.hunger += 1
             if self.hunger > HUNGER_LIMIT:
                 do_random = True
+                #print("Hunger limit crossed, executing random action!")
                 self.hunger = 0
         else:
             self.hunger = 0
