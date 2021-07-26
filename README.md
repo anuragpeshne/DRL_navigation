@@ -27,7 +27,11 @@ The agent has been trained until it gets an average score > +15 over 100 consecu
     - Windows (64-bit): [click here](https://s3-us-west-1.amazonaws.com/udacity-drlnd/P1/Banana/Banana_Windows_x86_64.zip)
 
 2. Place the file in the `unity_env/` folder, and unzip (or decompress) the file.
-3. Install the pre-requisites by following the instructions in `Navigation,ipynb`.
+3. Install the pre-requisites using `conda`:
+``` sh
+conda env create --name drlnd_navigation --file=environment.yml
 
-### Instructions
-Follow the instructions in `Navigation.ipynb` to get started with training the agent!
+# create jupyter-notebook kernel
+python -m ipykernel install --user --name drlnd_navigation --display-name "drlnd_navigation"
+```
+4. Make sure to select kernel `drlnd_navigation` when executing `jupyter-notebook`
