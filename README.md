@@ -35,3 +35,7 @@ conda env create --name drlnd_navigation --file=environment.yml
 python -m ipykernel install --user --name drlnd_navigation --display-name "drlnd_navigation"
 ```
 4. Make sure to select kernel `drlnd_navigation` when executing `jupyter-notebook`
+
+## Instructions
+- To run the project using saved weights for the agent, execute the section "Watch a Smart Agent!" in the notebook `Navigation.ipynb`
+- To train the network, execute the section "Train the Agent with DQN" in the notebook `Navigation.ipynb`
