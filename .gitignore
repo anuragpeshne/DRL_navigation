@@ -1,5 +1,6 @@
 # Unity agent exe
-unity_env/*
+unity_env/
+pixels_unity_env/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
