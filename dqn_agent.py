@@ -5,10 +5,12 @@ import random
 from collections import namedtuple, deque
 
 from model import QNetwork
+from cnn_model import CNN_QNetwork
 
 import torch
 import torch.nn.functional as F
 import torch.optim as optim
+import torchvision.transforms as T
 
 BUFFER_SIZE = int(1e5)  # replay buffer size
 BATCH_SIZE = 64         # minibatch size
@@ -18,13 +20,14 @@ LR = 5e-4               # learning rate
 UPDATE_EVERY = 4        # how often to update the network
 HUNGER_LIMIT = 20       # how many steps to tolerate wihtout +ve reward before doing something random
 
-#device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-device = torch.device("cpu")
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+#device = torch.device("cpu")
+print("selected device:", device)
 
 class Agent():
     """Interacts with and leans from the environment."""
 
-    def __init__(self, state_size, action_size, seed):
+    def __init__(self, state_size, action_size, seed, input_type="vector"):
         """Initialize an Agent object.
 
         Params
@@ -38,12 +41,18 @@ class Agent():
         self.seed = random.seed(seed)
 
         # Q-Network
-        self.qnetwork_local = QNetwork(state_size, action_size, seed).to(device)
-        self.qnetwork_target = QNetwork(state_size, action_size, seed).to(device)
+        if input_type == "vector":
+            self.model_type = "fcnet"
+            self.qnetwork_local = QNetwork(state_size, action_size, seed).to(device)
+            self.qnetwork_target = QNetwork(state_size, action_size, seed).to(device)
+        else:
+            self.model_type = "cnnet"
+            self.qnetwork_local = CNN_QNetwork(state_size, action_size, seed).to(device)
+            self.qnetwork_target = CNN_QNetwork(state_size, action_size, seed).to(device)
         self.optimizer = optim.Adam(self.qnetwork_local.parameters(), lr=LR)
 
         # Replay memory
-        self.memory = ReplayBuffer(action_size, BUFFER_SIZE, BATCH_SIZE, seed)
+        self.memory = ReplayBuffer(action_size, BUFFER_SIZE, BATCH_SIZE, seed, self.model_type)
         # initialize time step (for updating every UPDATE_EVERY steps)
         self.t_step = 0
         self.hunger = 0
@@ -68,7 +77,7 @@ class Agent():
             state (array_like): current state
             eps (float): epsilon, for epsilon-greedy action selection
         """
-        state = torch.from_numpy(state).float().unsqueeze(0).to(device)
+        state = self._preprocess_state(state)
         self.qnetwork_local.eval()
         with torch.no_grad():
             action_values = self.qnetwork_local(state)
@@ -93,6 +102,16 @@ class Agent():
         else:
             return random.choice(np.arange(self.action_size))
 
+    def _preprocess_state(self, state):
+        if self.model_type == "fcnet":
+            state = torch.from_numpy(state).float().unsqueeze(0).to(device)
+        else:
+            rgb_transforms = T.Compose([
+                T.ToTensor(),
+                T.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+            ])
+            state = torch.stack([rgb_transforms(state_sample) for state_sample in state]).float().to(device)
+        return state
 
     def learn(self, experiences, gamma):
         """Update value parameters using given batch of experience tuples.
@@ -152,7 +171,7 @@ class DoubleDQNAgent(Agent):
 class ReplayBuffer:
     """Fixed-size buffer to store experience tuples."""
 
-    def __init__(self, action_size, buffer_size, batch_size, seed):
+    def __init__(self, action_size, buffer_size, batch_size, seed, model_type):
         """Initialize a ReplayBuffer object.
 
         Params
@@ -167,6 +186,7 @@ class ReplayBuffer:
         self.batch_size = batch_size
         self.experience = namedtuple("Experience", field_names=["state", "action", "reward", "next_state", "done"])
         self.seed = random.seed(seed)
+        self.model_type = model_type
 
     def add(self, state, action, reward, next_state, done):
         """Add a new experience to memory."""
@@ -177,10 +197,19 @@ class ReplayBuffer:
         """Randomly sample a batch of experiences from memory."""
         experiences = random.sample(self.memory, k=self.batch_size)
 
-        states = torch.from_numpy(np.vstack([e.state for e in experiences if e is not None])).float().to(device)
+        if self.model_type == "fcnet":
+            states = torch.from_numpy(np.vstack([e.state for e in experiences if e is not None])).float().to(device)
+            next_states = torch.from_numpy(np.vstack([e.next_state for e in experiences if e is not None])).float().to(device)
+        else:
+            rgb_transforms = T.Compose([
+                T.ToTensor(),
+                T.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+            ])
+            states = torch.stack([rgb_transforms(e.state[0]) for e in experiences if e is not None]).float().to(device)
+            next_states = torch.stack([rgb_transforms(e.next_state[0]) for e in experiences if e is not None]).float().to(device)
+
         actions = torch.from_numpy(np.vstack([e.action for e in experiences if e is not None])).long().to(device)
         rewards = torch.from_numpy(np.vstack([e.reward for e in experiences if e is not None])).float().to(device)
-        next_states = torch.from_numpy(np.vstack([e.next_state for e in experiences if e is not None])).float().to(device)
         dones = torch.from_numpy(np.vstack([e.done for e in experiences if e is not None]).astype(np.uint8)).float().to(device)
 
         return (states, actions, rewards, next_states, dones)
