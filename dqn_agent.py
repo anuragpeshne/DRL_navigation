@@ -24,6 +24,23 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 #device = torch.device("cpu")
 print("selected device:", device)
 
+def preprocess_state(state, model_type):
+    if model_type == "fcnet":
+        state = torch.from_numpy(state).float()
+    else:
+        #print("before transform:", state.shape)
+        rgb_transforms = T.Compose([
+            T.ToTensor(),
+            T.Lambda(lambda doubleTensor: doubleTensor.float()),
+            T.ToPILImage(),
+            T.Grayscale(),
+            T.ToTensor(),
+            #T.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+        ])
+        state = rgb_transforms(state[0])
+        #print("after transform:", state.shape)
+    return state
+
 class Agent():
     """Interacts with and leans from the environment."""
 
@@ -59,6 +76,8 @@ class Agent():
 
     def step(self, state, action, reward, next_state, done):
         # Save experience in replay memory
+        state = preprocess_state(state, self.model_type)
+        next_state = preprocess_state(next_state, self.model_type)
         self.memory.add(state, action, reward, next_state, done)
 
         # Learn every UPDATE_EVERY time steps.
@@ -77,7 +96,8 @@ class Agent():
             state (array_like): current state
             eps (float): epsilon, for epsilon-greedy action selection
         """
-        state = self._preprocess_state(state)
+        state = preprocess_state(state, self.model_type) #torch.from_numpy(state).float(), self.model_type)
+        state = state.unsqueeze(0).to(device)
         self.qnetwork_local.eval()
         with torch.no_grad():
             action_values = self.qnetwork_local(state)
@@ -101,17 +121,6 @@ class Agent():
             return np.argmax(action_values.cpu().data.numpy())
         else:
             return random.choice(np.arange(self.action_size))
-
-    def _preprocess_state(self, state):
-        if self.model_type == "fcnet":
-            state = torch.from_numpy(state).float().unsqueeze(0).to(device)
-        else:
-            rgb_transforms = T.Compose([
-                T.ToTensor(),
-                T.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-            ])
-            state = torch.stack([rgb_transforms(state_sample) for state_sample in state]).float().to(device)
-        return state
 
     def learn(self, experiences, gamma):
         """Update value parameters using given batch of experience tuples.
@@ -197,16 +206,8 @@ class ReplayBuffer:
         """Randomly sample a batch of experiences from memory."""
         experiences = random.sample(self.memory, k=self.batch_size)
 
-        if self.model_type == "fcnet":
-            states = torch.from_numpy(np.vstack([e.state for e in experiences if e is not None])).float().to(device)
-            next_states = torch.from_numpy(np.vstack([e.next_state for e in experiences if e is not None])).float().to(device)
-        else:
-            rgb_transforms = T.Compose([
-                T.ToTensor(),
-                T.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-            ])
-            states = torch.stack([rgb_transforms(e.state[0]) for e in experiences if e is not None]).float().to(device)
-            next_states = torch.stack([rgb_transforms(e.next_state[0]) for e in experiences if e is not None]).float().to(device)
+        states = torch.stack([e.state for e in experiences if e is not None]).to(device)
+        next_states = torch.stack([e.next_state for e in experiences if e is not None]).to(device)
 
         actions = torch.from_numpy(np.vstack([e.action for e in experiences if e is not None])).long().to(device)
         rewards = torch.from_numpy(np.vstack([e.reward for e in experiences if e is not None])).float().to(device)

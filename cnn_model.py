@@ -20,32 +20,40 @@ class CNN_QNetwork(nn.Module):
 
         hidden_layer_size1 = 64
 
-        # 84x84x3 -> CNN1 -> 84x84x3 -> CNN2 -> 7_x7_x3 -> FC1 -> FC2
-
-        # 3 input image channel, 10 output channels/feature maps
+        # 1 input image channel, 32 output channels/feature maps
         # 3x3 square convolution kernel
         ## output size = (W-F)/S +1 = (84-3)/1 +1 = 82
-        # the output Tensor for one image, will have the dimensions: (10, 82, 82)
-        # after one pool layer, this becomes (10, 41, 41)
-        self.conv1 = nn.Conv2d(3, 10, 3)
+        # the output Tensor for one image, will have the dimensions: (32, 82, 82)
+        # after one pool layer, this becomes (32, 41, 41)
+        self.conv1 = nn.Conv2d(1, 32, 3)
         self.pool = nn.MaxPool2d(2, 2)
 
-        # second conv layer: 10 inputs, 20 outputs, 3x3 conv
+        # second conv layer: 32 inputs, 64 outputs, 3x3 conv
         ## output size = (W-F)/S +1 = (41-3)/1 +1 = 39
-        # the output tensor will have dimensions: (20, 39, 39)
-        # after another pool layer this becomes (20, 19, 19); 19.5 taking floor
-        self.conv2 = nn.Conv2d(10, 20, 3)
+        # the output tensor will have dimensions: (64, 39, 39)
+        # after another pool layer this becomes (64, 19, 19); 19.5 taking floor
+        self.conv2 = nn.Conv2d(32, 64, 3)
 
-        # 20 output * 40 * 40 pooled map size
-        self.fc1 = nn.Linear(20 * 19 * 19, hidden_layer_size1)
+        # third conv layer: 32 inputs, 32 outputs, 3x3 conv
+        ## output size = (W-F)/S +1 = (19-3)/1 +1 = 17
+        # the output tensor will have dimensions: (32, 17, 17)
+        # after another pool layer this becomes (32, 8, 8); (floor(8.5))
+        self.conv3 = nn.Conv2d(64, 32, 3)
+
+        # 32 output * 8 * 8 pooled map size
+        self.fc1 = nn.Linear(32 * 8 * 8, hidden_layer_size1)
 
         self.fc2 = nn.Linear(hidden_layer_size1, action_size)
 
     def forward(self, state):
         """Build a network that maps state -> action values."""
         # 2 conv networks
+        #print(state.shape)
+        #print(self.conv1(state).shape)
+        #print(self.pool(F.relu(self.conv1(state))).shape)
         x = self.pool(F.relu(self.conv1(state)))
         x = self.pool(F.relu(self.conv2(x)))
+        x = self.pool(F.relu(self.conv3(x)))
 
         # prep for linear layer
         # Flatten
