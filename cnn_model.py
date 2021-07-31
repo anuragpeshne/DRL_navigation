@@ -20,12 +20,12 @@ class CNN_QNetwork(nn.Module):
 
         hidden_layer_size1 = 64
 
-        # 1 input image channel, 32 output channels/feature maps
+        # 3 input image channel, 32 output channels/feature maps
         # 3x3 square convolution kernel
         ## output size = (W-F)/S +1 = (84-3)/1 +1 = 82
         # the output Tensor for one image, will have the dimensions: (32, 82, 82)
         # after one pool layer, this becomes (32, 41, 41)
-        self.conv1 = nn.Conv2d(1, 32, 3)
+        self.conv1 = nn.Conv2d(3, 32, 3)
         self.pool = nn.MaxPool2d(2, 2)
 
         # second conv layer: 32 inputs, 64 outputs, 3x3 conv

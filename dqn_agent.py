@@ -32,9 +32,6 @@ def preprocess_state(state, model_type):
         rgb_transforms = T.Compose([
             T.ToTensor(),
             T.Lambda(lambda doubleTensor: doubleTensor.float()),
-            T.ToPILImage(),
-            T.Grayscale(),
-            T.ToTensor(),
             #T.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
         ])
         state = rgb_transforms(state[0])
